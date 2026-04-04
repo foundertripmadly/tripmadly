@@ -1,0 +1,48 @@
+export const countryCurrency: Record<string, string> = {
+  IN: "INR",
+  US: "USD",
+  GB: "GBP",
+  AE: "AED",
+  JP: "JPY",
+  SG: "SGD",
+  AU: "AUD",
+  CA: "CAD",
+  NZ: "NZD",
+  CH: "CHF",
+  SE: "SEK",
+  NO: "NOK",
+  DK: "DKK",
+  SA: "SAR",
+  QA: "QAR",
+  KW: "KWD",
+  OM: "OMR",
+  TH: "THB",
+  ID: "IDR",
+  MY: "MYR",
+  KR: "KRW",
+  CN: "CNY",
+  HK: "HKD",
+  TR: "TRY",
+  RU: "RUB",
+  ZA: "ZAR",
+  BR: "BRL",
+  MX: "MXN",
+  AR: "ARS",
+  CL: "CLP",
+  CO: "COP",
+  PE: "PEN",
+  EU: "EUR",
+  FR: "EUR",
+  DE: "EUR",
+  ES: "EUR",
+  IT: "EUR",
+  NL: "EUR",
+  BE: "EUR",
+  PT: "EUR",
+  IE: "EUR"
+}
+
+export function getCurrencyFromCountry(country: string | null) {
+  if (!country) return "USD"
+  return countryCurrency[country.toUpperCase()] || "USD"
+}
