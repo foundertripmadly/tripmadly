@@ -29,8 +29,7 @@ const origin = req.headers.get("origin")
 const allowedOrigins = [
   process.env.NEXT_PUBLIC_SITE_URL || "https://tripmadly.com",
   "https://www.tripmadly.com",
-  "http://localhost:3000" // ✅ dev
-]
+];
 
 if (
   !origin ||

@@ -24,7 +24,7 @@ export async function fetchAPI(
   options: RequestInit = {}
 ) {
   try {
-    const res = await fetch(`${STRAPI_URL}${path}`, {
+    const res = await fetch(`${STRAPI_URL}/api${path}`, {
       ...options,
       headers: {
         "Content-Type": "application/json",

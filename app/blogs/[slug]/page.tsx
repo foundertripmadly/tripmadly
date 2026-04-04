@@ -1,29 +1,31 @@
 import Image from 'next/image';
-import { fetchAPI, getStrapiURL } from '@/lib/api';
+import { fetchAPI } from '@/lib/api';
 import { notFound } from 'next/navigation';
 
 export const revalidate = 60;
 
+const IMAGE_BASE_URL = process.env.NEXT_PUBLIC_STRAPI_URL!;
+
 async function getBlog(slug: string) {
   const res = await fetchAPI(
-    `/api/blogs?filters[slug][$eq]=${slug}&populate=*`
+    `/blogs?filters[slug][$eq]=${slug}&populate=*`
   );
 
-  return res.data?.[0] || null;
+  return res?.data?.[0] || null;
 }
 
 export async function generateMetadata({ params }: any) {
   const blog = await getBlog(params.slug);
-
   if (!blog) return {};
 
+  const attr = blog.attributes || blog;
+
   return {
-    title: blog.title,
-    description: blog.excerpt,
+    title: attr.title,
+    description: attr.excerpt,
   };
 }
 
-// ✅ IMPROVED RICH TEXT (already safe)
 function renderContent(content: any) {
   if (!content) return null;
 
@@ -56,39 +58,41 @@ function renderContent(content: any) {
 
 export default async function BlogDetail({ params }: any) {
   const blog = await getBlog(params.slug);
-
   if (!blog) return notFound();
 
-  const image =
-    blog.image?.formats?.large?.url ||
-    blog.image?.formats?.medium?.url ||
-    blog.image?.url;
+  const attr = blog.attributes || blog;
+
+  const imagePath =
+    attr.image?.formats?.large?.url ||
+    attr.image?.formats?.medium?.url ||
+    attr.image?.url;
+
+  const image = imagePath ? `${IMAGE_BASE_URL}${imagePath}` : null;
 
   return (
     <main className="max-w-4xl mx-auto p-6 lg:p-10">
       <h1 className="text-4xl font-bold mb-6">
-        {blog.title || "Untitled"}
+        {attr.title || "Untitled"}
       </h1>
 
-      {/* ✅ FIX 3: SAFE IMAGE FALLBACK */}
-      <div className="relative w-full h-[400px] mb-6">
+      <div className="relative w-full h-[400px] mb-6 overflow-hidden rounded-xl">
         <Image
-          src={image ? getStrapiURL(image) : "/fallback.jpg"}
-          alt={blog.title || "Blog Image"}
+          src={image || "/fallback.jpg"}
+          alt={attr.title || "Blog Image"}
           fill
-          className="object-cover rounded-xl"
+          className="object-cover"
         />
       </div>
 
       <p className="text-gray-500 mb-6">
-        {blog.author || "Admin"} •{" "}
-        {blog.date
-          ? new Date(blog.date).toDateString()
+        {attr.author || "Admin"} •{" "}
+        {attr.date
+          ? new Date(attr.date).toDateString()
           : "No date"}
       </p>
 
       <div className="text-lg leading-relaxed">
-        {renderContent(blog.content)}
+        {renderContent(attr.content)}
       </div>
     </main>
   );

@@ -3,25 +3,33 @@ import Footer from '@/components/Footer';
 import Image from 'next/image';
 import { Calendar, User, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
-import { fetchAPI, getStrapiURL } from '@/lib/api';
+import { fetchAPI } from '@/lib/api';
 
 export const revalidate = 60;
 
-async function getBlogs() {
-  const res = await fetchAPI('/api/blogs?populate=*');
+const IMAGE_BASE_URL = process.env.NEXT_PUBLIC_STRAPI_URL!;
 
-  return (res.data || []).map((item: any) => ({
-    id: item.id,
-    slug: item.slug,
-    title: item.title,
-    excerpt: item.excerpt,
-    date: item.date,
-    author: item.author,
-    image:
-      item.image?.formats?.medium?.url ||
-      item.image?.url ||
-      null,
-  }));
+async function getBlogs() {
+  const res = await fetchAPI('/blogs?populate=*');
+
+  return (res?.data || []).map((item: any) => {
+    const attr = item.attributes || item;
+
+    const imagePath =
+      attr.image?.url ||
+      attr.image?.formats?.medium?.url ||
+      null;
+
+    return {
+      id: item.id,
+      slug: attr.slug || "",
+      title: attr.title || "",
+      excerpt: attr.excerpt || "",
+      date: attr.date || "",
+      author: attr.author || "",
+      image: imagePath ? `${IMAGE_BASE_URL}${imagePath}` : null,
+    };
+  });
 }
 
 export default async function BlogsPage() {
@@ -49,10 +57,10 @@ export default async function BlogsPage() {
                 className="bg-white rounded-[3rem] overflow-hidden shadow-xl group flex flex-col"
               >
                 {/* IMAGE */}
-                <div className="h-72 relative">
+                <div className="h-72 relative overflow-hidden rounded-t-[3rem]">
                   <Image
-                    src={blog.image ? getStrapiURL(blog.image) : "/fallback.jpg"}
-                    alt={blog.title || "Blog Image"}
+                    src={blog.image || "/fallback.jpg"}
+                    alt={blog.title}
                     fill
                     className="object-cover group-hover:scale-110 transition duration-700"
                   />
@@ -74,12 +82,10 @@ export default async function BlogsPage() {
                       </span>
                     </div>
 
-                    {/* ✅ FIX 1: SAFE TITLE */}
                     <h3 className="text-2xl font-bold mb-3">
                       {blog.title || "Untitled"}
                     </h3>
 
-                    {/* ✅ FIX 2: SAFE EXCERPT */}
                     <p className="text-slate-500 line-clamp-3">
                       {blog.excerpt || "No description available"}
                     </p>

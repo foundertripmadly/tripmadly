@@ -6,7 +6,9 @@ import Footer from '@/components/Footer';
 import { motion } from 'motion/react';
 import Image from 'next/image';
 import { MapPin, Star, ChevronRight } from 'lucide-react';
-import { fetchAPI, getStrapiURL } from '@/lib/api';
+import { fetchAPI } from '@/lib/api';
+
+const IMAGE_BASE_URL = process.env.NEXT_PUBLIC_STRAPI_URL!;
 
 export default function HotelsPage() {
   const [hotels, setHotels] = useState<any[]>([]);
@@ -14,30 +16,38 @@ export default function HotelsPage() {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // ✅ FETCH DATA
+  // ✅ FETCH DATA (FIXED)
   useEffect(() => {
     const load = async () => {
       try {
-        const res = await fetchAPI('/api/hotels?populate=*');
+        const res = await fetchAPI('/hotels?populate=*');
 
-        const data = (res.data || []).map((item: any) => {
-          const attrs = item.attributes || item;
+        const data = (res?.data || []).map((item: any) => {
+          const attr = item.attributes || item;
+
+          const imagePath =
+            attr.image?.url ||
+            attr.image?.formats?.medium?.url ||
+            attr.image?.formats?.small?.url ||
+            null;
 
           return {
             id: item.id,
-            title: attrs.name || "No title",
-            location: attrs.location || "Unknown",
-            price: attrs.price || "N/A",
-            rating: attrs.rating || 0,
-            tag: attrs.tag || "",
-            affiliate_link: attrs.affiliate_link || "#",
-            image:
-              attrs.image?.formats?.medium?.url ||
-              attrs.image?.formats?.small?.url ||
-              attrs.image?.url ||
-              null,
+            title: attr.name || attr.title || "No title",
+            location: attr.location || "Unknown",
+            price: attr.price || "N/A",
+            rating: attr.rating || 0,
+            tag: attr.tag || "",
+            affiliate_link: attr.affiliate_link || "",
+
+            // ✅ FINAL IMAGE FIX
+            image: imagePath
+              ? `${IMAGE_BASE_URL}${imagePath}`
+              : null,
           };
         });
+
+        console.log("HOTELS DATA:", data);
 
         setHotels(data);
         setFiltered(data);
@@ -51,7 +61,7 @@ export default function HotelsPage() {
     load();
   }, []);
 
-  // ✅ LIVE SEARCH
+  // ✅ SEARCH
   useEffect(() => {
     if (!search) {
       setFiltered(hotels);
@@ -66,9 +76,7 @@ export default function HotelsPage() {
 
       return (
         title.includes(query) ||
-        location.includes(query) ||
-        title.startsWith(query) ||
-        location.startsWith(query)
+        location.includes(query)
       );
     });
 
@@ -82,9 +90,8 @@ export default function HotelsPage() {
       <section className="pt-32 pb-20 px-6">
         <div className="max-w-7xl mx-auto">
 
-          {/* ✅ HEADER (SEARCH RIGHT SIDE) */}
+          {/* HEADER */}
           <div className="mb-12 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-
             <div>
               <h1 className="text-5xl font-bold text-slate-900">
                 Hotels
@@ -102,7 +109,6 @@ export default function HotelsPage() {
               onChange={(e) => setSearch(e.target.value)}
               className="w-full lg:w-[420px] px-6 py-4 rounded-full border-2 border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 shadow-sm"
             />
-
           </div>
 
           {/* GRID */}
@@ -123,15 +129,15 @@ export default function HotelsPage() {
                   className="bg-white rounded-[2.5rem] overflow-hidden shadow-xl group flex flex-col"
                 >
                   {/* IMAGE */}
-                  <div className="h-64 relative">
+                  <div className="h-64 relative overflow-hidden rounded-t-[2.5rem]">
                     <Image
-                      src={getStrapiURL(hotel.image || "/fallback.jpg")}
+                      src={hotel.image || "/fallback.jpg"}
                       alt={hotel.title}
                       fill
                       className="object-cover group-hover:scale-105 transition duration-500"
                     />
 
-                    {/* 🏷 TAG */}
+                    {/* TAG */}
                     {hotel.tag && (
                       <div className="absolute top-6 right-6 bg-white px-3 py-1 rounded-full text-xs font-bold text-black">
                         {hotel.tag}
@@ -158,9 +164,7 @@ export default function HotelsPage() {
                     {/* PRICE + CTA */}
                     <div className="flex justify-between items-center mt-6 pt-4 border-t">
                       <div>
-                        <p className="text-xs text-slate-400">
-                          Price
-                        </p>
+                        <p className="text-xs text-slate-400">Price</p>
                         <p className="text-xl font-bold">
                           {hotel.price}
                         </p>

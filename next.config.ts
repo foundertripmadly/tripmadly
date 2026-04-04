@@ -3,21 +3,28 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   reactStrictMode: true,
 
-  // ✅ ADD THIS BLOCK
+  // ✅ Ignore ESLint during build
   eslint: {
     ignoreDuringBuilds: true,
   },
 
   images: {
-    domains: [
-      "picsum.photos",
-      "image.pollinations.ai",
-      "i.pravatar.cc",
-      "images.unsplash.com",
-      "195.35.20.196",
-    ],
-
     remotePatterns: [
+      // 🔥 STRAPI (DEV - current working)
+      {
+        protocol: "http",
+        hostname: "195.35.20.196",
+        pathname: "/uploads/**",
+      },
+
+      // 🔥 STRAPI (PRODUCTION - after nginx)
+      {
+        protocol: "https",
+        hostname: "tripmadly.com",
+        pathname: "/backend/uploads/**",
+      },
+
+      // 🔥 External image sources (safe)
       {
         protocol: "https",
         hostname: "picsum.photos",
@@ -36,7 +43,8 @@ const nextConfig: NextConfig = {
       },
     ],
 
-    unoptimized: false,
+    // ✅ Prevent timeout + improve stability
+    unoptimized: true,
   },
 
   output: "standalone",

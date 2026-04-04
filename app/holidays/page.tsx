@@ -5,40 +5,58 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import Image from 'next/image';
 import { MapPin, ChevronRight } from 'lucide-react';
-import { fetchAPI, getStrapiURL } from '@/lib/api';
+import { fetchAPI } from '@/lib/api';
+
+const IMAGE_BASE_URL = process.env.NEXT_PUBLIC_STRAPI_URL!;
 
 export default function HolidaysPage() {
   const [holidays, setHolidays] = useState<any[]>([]);
   const [filtered, setFiltered] = useState<any[]>([]);
   const [search, setSearch] = useState('');
 
-  // ✅ FETCH DATA
+  // ✅ FETCH DATA (STANDARDIZED)
   useEffect(() => {
     const load = async () => {
-      const res = await fetchAPI('/api/holidays?populate=*');
+      try {
+        const res = await fetchAPI('/holidays?populate=*');
 
-      const data = (res.data || []).map((item: any) => ({
-        id: item.id,
-        title: item.title,
-        location: item.location,
-        price: item.price,
-        duration: item.duration,
-        tag: item.tag || '',
-        affiliate_link: item.affiliate_link,
-        image:
-          item.image?.formats?.medium?.url ||
-          item.image?.url ||
-          null,
-      }));
+        const data = (res?.data || []).map((item: any) => {
+          const attr = item.attributes || item;
 
-      setHolidays(data);
-      setFiltered(data);
+          const imagePath =
+            attr.image?.url ||
+            attr.image?.formats?.medium?.url ||
+            null;
+
+          return {
+            id: item.id,
+            title: attr.title || "",
+            location: attr.location || "",
+            price: attr.price || "",
+            duration: attr.duration || "",
+            tag: attr.tag || "",
+            affiliate_link: attr.affiliate_link || "",
+
+            // ✅ FINAL STANDARD IMAGE FIX
+            image: imagePath
+              ? `${IMAGE_BASE_URL}${imagePath}`
+              : null,
+          };
+        });
+
+        console.log("HOLIDAYS DATA:", data);
+
+        setHolidays(data);
+        setFiltered(data);
+      } catch (error) {
+        console.error("Holiday fetch error:", error);
+      }
     };
 
     load();
   }, []);
 
-  // ✅ LIVE SEARCH
+  // ✅ SEARCH (STANDARDIZED)
   useEffect(() => {
     if (!search) {
       setFiltered(holidays);
@@ -53,9 +71,7 @@ export default function HolidaysPage() {
 
       return (
         title.includes(query) ||
-        location.includes(query) ||
-        title.startsWith(query) ||
-        location.startsWith(query)
+        location.includes(query)
       );
     });
 
@@ -69,29 +85,24 @@ export default function HolidaysPage() {
       <section className="pt-32 pb-20 px-6">
         <div className="max-w-7xl mx-auto">
 
-          {/* ✅ UPDATED HEADER (SEARCH SHIFTED RIGHT) */}
+          {/* HEADER */}
           <div className="mb-12 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
-
-            {/* LEFT */}
             <div>
               <h1 className="text-5xl font-bold text-slate-900">
                 Holiday Packages
               </h1>
-
-              <p className="text-slate-600 mt-2">
+              <p className="text-slate-600 mt-2 text-lg">
                 Handpicked experiences for your next unforgettable journey.
               </p>
             </div>
 
-            {/* RIGHT SEARCH */}
             <input
               type="text"
               placeholder="Search packages"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full lg:w-[420px] px-6 py-4 rounded-full border-2 border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 shadow-sm"
+              className="w-full lg:w-[420px] px-6 py-4 rounded-full border-2 border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
-
           </div>
 
           {/* GRID */}
@@ -104,28 +115,16 @@ export default function HolidaysPage() {
               filtered.map((pkg) => (
                 <div
                   key={pkg.id}
-                  className="bg-white rounded-[2.5rem] overflow-hidden shadow-xl group"
+                  className="bg-white rounded-[2.5rem] overflow-hidden shadow-xl"
                 >
                   {/* IMAGE */}
-                  <div className="h-64 relative">
+                  <div className="h-64 relative overflow-hidden rounded-t-[2.5rem]">
                     <Image
-                      src={getStrapiURL(pkg.image || "/fallback.jpg")}
+                      src={pkg.image || "/fallback.jpg"}
                       alt={pkg.title}
                       fill
-                      className="object-cover group-hover:scale-105 transition duration-500"
+                      className="object-cover"
                     />
-
-                    {/* TAG */}
-                    {pkg.tag && (
-                      <div className="absolute top-6 right-6 bg-white px-3 py-1 rounded-full text-xs font-bold text-black">
-                        {pkg.tag}
-                      </div>
-                    )}
-
-                    {/* DURATION */}
-                    <div className="absolute top-6 left-6 bg-white px-3 py-1 rounded-full text-xs font-bold text-black">
-                      {pkg.duration}
-                    </div>
                   </div>
 
                   {/* CONTENT */}
@@ -138,29 +137,20 @@ export default function HolidaysPage() {
                       {pkg.title}
                     </h3>
 
-                    <div className="flex justify-between items-center mt-4">
-                      <div>
-                        <p className="text-xs text-slate-400">
-                          Starting from
-                        </p>
-                        <p className="text-xl font-bold">
-                          {pkg.price}
-                        </p>
-                      </div>
+                    <p className="mt-2 font-bold">{pkg.price}</p>
 
-                      <a
-                        href={
-                          pkg.affiliate_link?.startsWith('http')
-                            ? pkg.affiliate_link
-                            : `https://${pkg.affiliate_link}`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="bg-black text-white px-4 py-2 rounded-xl flex items-center gap-1 hover:bg-indigo-600 transition"
-                      >
-                        Book Now <ChevronRight size={16} />
-                      </a>
-                    </div>
+                    <a
+                      href={
+                        pkg.affiliate_link?.startsWith("http")
+                          ? pkg.affiliate_link
+                          : `https://${pkg.affiliate_link}`
+                      }
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-4 inline-block bg-black text-white px-4 py-2 rounded-xl hover:bg-indigo-600 transition"
+                    >
+                      Book Now <ChevronRight size={16} className="inline ml-1" />
+                    </a>
                   </div>
                 </div>
               ))
