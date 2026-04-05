@@ -57,7 +57,7 @@ export default function SubscribePage() {
 
       const token = session?.access_token
 
-      const res = await fetch(`${window.location.origin}/api/razorpay/create-subscription`,{
+      const res = await fetch(`/api/razorpay/create-subscription`,{
 
         method:'POST',
 
