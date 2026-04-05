@@ -59,6 +59,7 @@ export async function POST(req: Request) {
       .select("*")
       .eq("user_id", user.id)
       .in("status", ["active", "created", "authenticated"])
+      .neq("plan_type", "free")
       .maybeSingle()
 
     if (existingSub) {
