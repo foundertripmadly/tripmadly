@@ -42,6 +42,8 @@ if (
 }
 
 const authHeader = req.headers.get("authorization")
+console.log("AUTH HEADER:", authHeader);
+console.log("ORIGIN:", req.headers.get("origin"));
 if(!authHeader){
 return NextResponse.json({error:"Unauthorized"},{status:401})
 }
@@ -146,8 +148,15 @@ if (sub.trips_used >= sub.trips_limit) {
   )
 }
 
+/* ✅ ADD HERE ↓↓↓ */
 
-const {destination,days,budget} = await req.json()
+console.log("===== TRIP API CALLED =====");
+
+const body = await req.json();
+console.log("Request Body:", body);
+
+const { destination, days, budget } = body;
+console.log("Extracted Destination:", destination);
 
 /* ---------- Country + Currency ---------- */
 
@@ -184,14 +193,21 @@ if (budget === "Luxury") {
 
 /* ---------- Geocode destination ---------- */
 
+console.log("Calling Google Geocode API for:", destination);
+
 const geoRes2 = await fetch(
   `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(destination)}&key=${GOOGLE_KEY}`
 )
 
 const geoData2 = await geoRes2.json()
+
+console.log("Google Geocode Full Response:", JSON.stringify(geoData2, null, 2));
+
 const location = geoData2.results?.[0]?.geometry?.location
 
 if (!location) {
+  console.error("❌ Destination not found:", destination);
+  console.error("Geocode returned:", JSON.stringify(geoData2, null, 2));
   await supabase.rpc("release_ai_lock", {
     user_id_input: userId
   })

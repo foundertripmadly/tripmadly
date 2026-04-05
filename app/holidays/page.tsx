@@ -37,7 +37,6 @@ export default function HolidaysPage() {
             tag: attr.tag || "",
             affiliate_link: attr.affiliate_link || "",
 
-            // ✅ FINAL STANDARD IMAGE FIX
             image: imagePath
               ? `${IMAGE_BASE_URL}${imagePath}`
               : null,
@@ -56,7 +55,7 @@ export default function HolidaysPage() {
     load();
   }, []);
 
-  // ✅ SEARCH (STANDARDIZED)
+  // ✅ SEARCH
   useEffect(() => {
     if (!search) {
       setFiltered(holidays);
@@ -125,6 +124,13 @@ export default function HolidaysPage() {
                       fill
                       className="object-cover"
                     />
+
+                    {/* ✅ TAG ADDED (ONLY CHANGE) */}
+                    {pkg.tag && (
+                      <div className="absolute top-6 right-6 bg-white px-3 py-1 rounded-full text-xs font-bold text-black">
+                        {pkg.tag}
+                      </div>
+                    )}
                   </div>
 
                   {/* CONTENT */}
