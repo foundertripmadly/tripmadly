@@ -368,8 +368,7 @@ RETURN STRICT JSON ONLY:
 }
 `
 
-const controller = new AbortController()
-const timeout = setTimeout(() => controller.abort(), 30000) // 10 sec
+
 
 let geminiResponse
 
@@ -383,7 +382,7 @@ try {
       body: JSON.stringify({
         contents: [{ role: "user", parts: [{ text: prompt }] }]
       }),
-      signal: controller.signal
+      
     }
   )
 } catch (err) {
@@ -397,9 +396,7 @@ try {
     { error: "AI request timed out" },
     { status: 500 }
   )
-} finally {
-  clearTimeout(timeout)
-}
+} 
 
 // ❌ HANDLE API FAILURE
 if (!geminiResponse.ok) {
