@@ -369,10 +369,11 @@ RETURN STRICT JSON ONLY:
 `
 
 const controller = new AbortController()
-const timeout = setTimeout(() => controller.abort(), 10000) // 10 sec
+const timeout = setTimeout(() => controller.abort(), 30000) // 10 sec
 
 let geminiResponse
 
+console.log("🚀 Calling Gemini API...");
 try {
   geminiResponse = await fetch(
     `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent?key=${process.env.GOOGLE_AI_API_KEY}`,
@@ -414,6 +415,7 @@ if (!geminiResponse.ok) {
   )
 }
 
+console.log("✅ Gemini responded successfully");
 const geminiData = await geminiResponse.json()
 
 const text =
