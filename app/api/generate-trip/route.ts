@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { getCurrencyFromCountry } from "@/lib/currency"
+import axios from "axios"
 
 const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash"
 const GEMINI_BASE = process.env.GEMINI_API_BASE
@@ -373,34 +374,40 @@ RETURN STRICT JSON ONLY:
 let geminiResponse
 
 console.log("🚀 Calling Gemini API...");
+
 try {
-  geminiResponse = await fetch(
+  const response = await axios.post(
     `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent?key=${process.env.GOOGLE_AI_API_KEY}`,
     {
-      method: "POST",
+      contents: [{ role: "user", parts: [{ text: prompt }] }]
+    },
+    {
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ role: "user", parts: [{ text: prompt }] }]
-      }),
-      
+      timeout: 30000
     }
   )
+
+  geminiResponse = {
+    ok: true,
+    json: async () => response.data
+  }
+
 } catch (err) {
-  console.error("Gemini timeout or network error:", err)
+  console.error("Gemini axios error:", err)
 
   await supabase.rpc("release_ai_lock", {
     user_id_input: userId
   })
 
   return NextResponse.json(
-    { error: "AI request timed out" },
+    { error: "AI request failed" },
     { status: 500 }
   )
-} 
+}
 
 // ❌ HANDLE API FAILURE
 if (!geminiResponse.ok) {
-  console.error("Gemini API error:", await geminiResponse.text())
+  console.error("Gemini API error")
 
   await supabase.rpc("release_ai_lock", {
     user_id_input: userId
