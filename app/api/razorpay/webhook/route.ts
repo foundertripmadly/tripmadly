@@ -88,6 +88,7 @@ export async function POST(req: Request) {
 
     const userId = subscription.notes?.user_id
     const planType = subscription.notes?.plan_type || "monthly"
+    console.log("📦 Plan Type from Razorpay:", planType)
 
     if (!userId) {
       console.log("❌ Missing user_id in notes")
@@ -114,24 +115,34 @@ export async function POST(req: Request) {
     ) {
       console.log("🚀 Activating:", userId)
 
+      // 🔥 FIRST DELETE OLD RECORD (CLEAN FIX)
+      const { error: deleteError } = await supabase
+        .from("subscriptions")
+        .delete()
+        .eq("user_id", userId)
+
+      if (deleteError) {
+        console.error("❌ Delete error:", deleteError)
+      }
+
+      // 🔥 THEN INSERT NEW (100% RELIABLE)
       const { error } = await supabase
         .from("subscriptions")
-        .upsert(
-          {
-            user_id: userId,
-            plan_type: planType,
-            razorpay_subscription_id: razorpaySubId,
-            trips_limit: limit,
-            trips_used: 0,
-            status: "active",
-            current_period_start: currentStart,
-            current_period_end: currentEnd,
-          },
-          { onConflict: "user_id" }
-        )
+        .insert({
+        user_id: userId,
+        plan_type: planType,
+        razorpay_subscription_id: razorpaySubId,
+        trips_limit: limit,
+        trips_used: 0,
+        status: "active",
+        current_period_start: currentStart,
+        current_period_end: currentEnd,
+  })
 
       if (error) {
-        console.error("Activation error:", error)
+        console.error("❌ Activation error:", error)
+      } else {
+        console.log("✅ Subscription updated in DB:", userId)
       }
     }
 

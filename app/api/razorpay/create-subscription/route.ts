@@ -9,7 +9,7 @@ export async function POST(req: Request) {
     // ===============================
     const authHeader = req.headers.get("authorization")
 
-    if (!authHeader) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 

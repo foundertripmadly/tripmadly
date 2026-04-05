@@ -57,6 +57,14 @@ export default function SubscribePage() {
 
       const token = session?.access_token
 
+      // 🔥 ADD THIS BLOCK HERE
+      if (!token) {
+        alert("Login expired. Please login again.")
+        router.push("/login")
+        return
+      }
+
+
       const res = await fetch(`/api/razorpay/create-subscription`,{
 
         method:'POST',
@@ -81,7 +89,7 @@ export default function SubscribePage() {
 
       const options = {
 
-        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+        key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "",
 
         subscription_id: data.subscription_id,
 
