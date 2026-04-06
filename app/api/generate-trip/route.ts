@@ -137,6 +137,11 @@ if (
   )
 }
 
+console.log("CREDITS DEBUG:", {
+  used: sub.trips_used,
+  limit: sub.trips_limit,
+  user: userId
+});
 // ❌ Credits finished
 if (sub.trips_used >= sub.trips_limit) {
   await supabase.rpc("release_ai_lock", {
@@ -144,7 +149,7 @@ if (sub.trips_used >= sub.trips_limit) {
   })
 
   return NextResponse.json(
-    { error: "No credits left" },
+    { error: "Trip limit reached", code: "LIMIT_REACHED" },
     { status: 403 }
   )
 }
@@ -526,6 +531,9 @@ const { data: creditOk, error: creditError } = await supabase.rpc(
 
 if (creditError) {
   console.error("Credit error:", creditError)
+  await supabase.rpc("release_ai_lock", {
+    user_id_input: userId
+  })
   return NextResponse.json(
     { error: "Credit system error" },
     { status: 500 }
