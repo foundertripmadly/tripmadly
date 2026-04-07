@@ -79,7 +79,27 @@ export async function POST(req: Request) {
     // ===============================
     // 📦 EXTRACT SUBSCRIPTION
     // ===============================
-    const subscription = event.payload?.subscription?.entity
+    console.log("🔥 FULL EVENT:", JSON.stringify(event, null, 2))
+
+    let subscription = event.payload?.subscription?.entity
+
+    // 🔥 fallback for payment-based events
+    if (!subscription && event.payload?.payment?.entity) {
+    console.log("⚠️ Using payment entity fallback")
+
+    const payment = event.payload.payment.entity
+
+    subscription = {
+      id: payment.subscription_id,
+      notes: payment.notes || {},
+      current_start: Math.floor(Date.now() / 1000),
+      current_end: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+    }
+  }
+
+    console.log("🧠 SUBSCRIPTION:", subscription)
+    console.log("🧠 NOTES:", subscription?.notes)
+    console.log("🧠 USER ID:", subscription?.notes?.user_id)
 
     if (!subscription) {
       console.log("⚠️ No subscription payload")
