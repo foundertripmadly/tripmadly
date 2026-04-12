@@ -91,7 +91,13 @@ export async function POST(req: Request) {
 
     subscription = {
       id: payment.subscription_id,
-      notes: payment.notes || {},
+
+      // 🔥 CRITICAL FIX
+      notes: {
+        user_id: payment.notes?.user_id || event.payload?.subscription?.entity?.notes?.user_id,
+        plan_type: payment.notes?.plan_type || "monthly",
+      },
+
       current_start: Math.floor(Date.now() / 1000),
       current_end: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
     }
