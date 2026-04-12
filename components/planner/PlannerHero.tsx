@@ -3,7 +3,7 @@ export default function PlannerHero() {
     <section className="text-center py-20">
 
       {/* Heading */}
-      <h1 className="text-7xl md:text-8xl font-bold tracking-tight leading-tight">
+      <h1 className="text-4xl sm:text-5xl md:text-7xl lg:text-8xl font-bold tracking-tight leading-tight">
         Explore the{" "}
         <span className="bg-gradient-to-r from-purple-600 to-indigo-500 bg-clip-text text-transparent">
           Unseen

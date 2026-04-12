@@ -5,7 +5,7 @@ import crypto from "crypto"
 import { createClient } from "@supabase/supabase-js"
 
 export async function POST(req: Request) {
-  console.log("🚀 Subscription API hit");
+  console.log("🚀 Subscription API hit")
   try {
     // ===============================
     // 📦 RAW BODY (REQUIRED FOR SIGNATURE)
@@ -46,6 +46,7 @@ export async function POST(req: Request) {
     const event = JSON.parse(rawBody)
 
     console.log("📩 Razorpay webhook:", event.event)
+    console.log("🧪 RAW EVENT:", JSON.stringify(event, null, 2))
 
     const supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -53,7 +54,7 @@ export async function POST(req: Request) {
     )
 
     // ===============================
-    // 🔒 IDEMPOTENCY (VERY IMPORTANT)
+    // 🔒 IDEMPOTENCY
     // ===============================
     const eventId = event.id
 
@@ -77,35 +78,46 @@ export async function POST(req: Request) {
     })
 
     // ===============================
-    // 📦 EXTRACT SUBSCRIPTION
+    // 📦 EXTRACT SUBSCRIPTION (FINAL FIX)
     // ===============================
     console.log("🔥 FULL EVENT:", JSON.stringify(event, null, 2))
 
     let subscription = event.payload?.subscription?.entity
 
-    // 🔥 fallback for payment-based events
-    if (!subscription && event.payload?.payment?.entity) {
-    console.log("⚠️ Using payment entity fallback")
+    // 🔥 FINAL ROBUST FALLBACK (handles ALL cases)
+    if (!subscription) {
+      const payment = event.payload?.payment?.entity
 
-    const payment = event.payload.payment.entity
+      if (payment?.subscription_id) {
+        console.log("⚠️ Using payment fallback")
 
-    subscription = {
-      id: payment.subscription_id,
+        subscription = {
+          id: payment.subscription_id,
 
-      // 🔥 CRITICAL FIX
-      notes: {
-        user_id: payment.notes?.user_id || event.payload?.subscription?.entity?.notes?.user_id,
-        plan_type: payment.notes?.plan_type || "monthly",
-      },
+          notes: {
+            user_id:
+              payment.notes?.user_id ||
+              event.payload?.subscription?.entity?.notes?.user_id,
 
-      current_start: Math.floor(Date.now() / 1000),
-      current_end: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+            plan_type:
+              payment.notes?.plan_type ||
+              event.payload?.subscription?.entity?.notes?.plan_type ||
+              "monthly",
+          },
+
+          current_start: Math.floor(Date.now() / 1000),
+          current_end:
+            Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        }
+      }
     }
-  }
 
+    // ===============================
+    // 🧠 DEBUG LOGS (FINAL)
+    // ===============================
     console.log("🧠 SUBSCRIPTION:", subscription)
-    console.log("🧠 NOTES:", subscription?.notes)
-    console.log("🧠 USER ID:", subscription?.notes?.user_id)
+    console.log("🧠 FINAL NOTES:", subscription?.notes)
+    console.log("🧠 FINAL USER ID:", subscription?.notes?.user_id)
 
     if (!subscription) {
       console.log("⚠️ No subscription payload")
@@ -141,7 +153,6 @@ export async function POST(req: Request) {
     ) {
       console.log("🚀 Activating:", userId)
 
-      // 🔥 FIRST DELETE OLD RECORD (CLEAN FIX)
       const { error: deleteError } = await supabase
         .from("subscriptions")
         .delete()
@@ -151,24 +162,23 @@ export async function POST(req: Request) {
         console.error("❌ Delete error:", deleteError)
       }
 
-      // 🔥 THEN INSERT NEW (100% RELIABLE)
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from("subscriptions")
         .insert({
-        user_id: userId,
-        plan_type: planType,
-        razorpay_subscription_id: razorpaySubId,
-        trips_limit: limit,
-        trips_used: 0,
-        status: "active",
-        current_period_start: currentStart,
-        current_period_end: currentEnd,
-  })
+          user_id: userId,
+          plan_type: planType,
+          razorpay_subscription_id: razorpaySubId,
+          trips_limit: limit,
+          trips_used: 0,
+          status: "active",
+          current_period_start: currentStart,
+          current_period_end: currentEnd,
+        })
 
       if (error) {
         console.error("❌ Activation error:", error)
       } else {
-        console.log("✅ Subscription updated in DB:", userId)
+        console.log("✅ DB SUCCESS:", data)
       }
     }
 
@@ -211,9 +221,6 @@ export async function POST(req: Request) {
       }
     }
 
-    // ===============================
-    // ✅ SUCCESS RESPONSE
-    // ===============================
     return NextResponse.json({ received: true })
   } catch (error) {
     console.error("Webhook error:", error)
