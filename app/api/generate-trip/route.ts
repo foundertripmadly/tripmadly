@@ -102,31 +102,47 @@ if (lock !== true) {
 /* ---------- CHECK SUBSCRIPTION + CREDITS ---------- */
 
 
-const { data: sub } = await supabase
+const { data: sub, error: subError } = await supabase
   .from("subscriptions")
   .select("*")
   .eq("user_id", userId)
-  .single()
+  .eq("status", "active")
+  .order("created_at", { ascending: false })
+  .limit(1)
+  .maybeSingle()
 
-// ❌ No subscription found
-if (!sub) {
+if (subError) {
+  console.error("❌ Subscription fetch error:", subError)
+
   await supabase.rpc("release_ai_lock", {
     user_id_input: userId
   })
 
   return NextResponse.json(
-    { error: "No subscription found" },
-    { status: 403 }
+    { error: "Subscription fetch failed" },
+    { status: 500 }
   )
+}
+
+// ✅ Handle FREE user (no subscription)
+let tripsUsed = 0
+let tripsLimit = 1 // FREE PLAN
+
+if (sub) {
+  tripsUsed = sub.trips_used || 0
+  tripsLimit = sub.trips_limit || 1
 }
 
 const now = new Date()
 
 // ❌ Subscription inactive or expired
 if (
-  sub.status !== "active" ||
-  (sub.current_period_end && new Date(sub.current_period_end) < now)
-) {
+  sub &&
+  (
+    sub.status !== "active" ||
+    (sub.current_period_end && new Date(sub.current_period_end) < now)
+  )
+){
   await supabase.rpc("release_ai_lock", {
     user_id_input: userId
   })
@@ -138,12 +154,13 @@ if (
 }
 
 console.log("CREDITS DEBUG:", {
-  used: sub.trips_used,
-  limit: sub.trips_limit,
+  used: tripsUsed,
+  limit: tripsLimit,
   user: userId
 });
+
 // ❌ Credits finished
-if (sub.trips_used >= sub.trips_limit) {
+if (tripsUsed >= tripsLimit) {
   await supabase.rpc("release_ai_lock", {
     user_id_input: userId
   })
@@ -388,44 +405,39 @@ try {
     },
     {
       headers: { "Content-Type": "application/json" },
-      timeout: 30000
+      timeout: 20000
     }
   )
 
-  geminiResponse = {
-    ok: true,
-    json: async () => response.data
-  }
+  geminiResponse = response.data
 
 } catch (err) {
-  console.error("Gemini axios error:", err)
+  console.error("❌ Gemini error, retrying...")
 
-  await supabase.rpc("release_ai_lock", {
-    user_id_input: userId
-  })
+  try {
+    const retry = await axios.post(
+      `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent?key=${process.env.GOOGLE_AI_API_KEY}`,
+      {
+        contents: [{ role: "user", parts: [{ text: prompt }] }]
+      },
+      {
+        headers: { "Content-Type": "application/json" },
+        timeout: 20000
+      }
+    )
 
-  return NextResponse.json(
-    { error: "AI request failed" },
-    { status: 500 }
-  )
-}
+    geminiResponse = retry.data
 
-// ❌ HANDLE API FAILURE
-if (!geminiResponse.ok) {
-  console.error("Gemini API error")
+  } catch (retryErr) {
+    console.error("❌ Gemini retry failed:", retryErr)
 
-  await supabase.rpc("release_ai_lock", {
-    user_id_input: userId
-  })
-
-  return NextResponse.json(
-    { error: "AI service temporarily unavailable" },
-    { status: 500 }
-  )
+    // ✅ IMPORTANT: DO NOT RETURN ERROR
+    geminiResponse = null
+  }
 }
 
 console.log("✅ Gemini responded successfully");
-const geminiData = await geminiResponse.json()
+const geminiData = geminiResponse
 
 const text =
 geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || ""
