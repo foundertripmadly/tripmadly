@@ -6,6 +6,7 @@ import { createClient } from "@supabase/supabase-js"
 
 export async function POST(req: Request) {
   console.log("🚀 Subscription API hit")
+
   try {
     // ===============================
     // 📦 RAW BODY (REQUIRED FOR SIGNATURE)
@@ -78,13 +79,13 @@ export async function POST(req: Request) {
     })
 
     // ===============================
-    // 📦 EXTRACT SUBSCRIPTION (FINAL FIX)
+    // 📦 EXTRACT SUBSCRIPTION
     // ===============================
     console.log("🔥 FULL EVENT:", JSON.stringify(event, null, 2))
 
     let subscription = event.payload?.subscription?.entity
 
-    // 🔥 FINAL ROBUST FALLBACK (handles ALL cases)
+    // 🔥 ROBUST FALLBACK (handles payment events)
     if (!subscription) {
       const payment = event.payload?.payment?.entity
 
@@ -113,7 +114,7 @@ export async function POST(req: Request) {
     }
 
     // ===============================
-    // 🧠 DEBUG LOGS (FINAL)
+    // 🧠 DEBUG LOGS
     // ===============================
     console.log("🧠 SUBSCRIPTION:", subscription)
     console.log("🧠 FINAL NOTES:", subscription?.notes)
@@ -145,13 +146,25 @@ export async function POST(req: Request) {
     if (planType === "yearly") limit = 60
 
     // ===============================
-    // 🚀 ACTIVATE SUBSCRIPTION
+    // ❌ IGNORE CANCEL (CRITICAL FIX)
     // ===============================
-    if (
-      event.event === "subscription.authenticated" ||
-      event.event === "subscription.activated"
-    ) {
+    if (event.event === "subscription.cancelled") {
+      console.log("⚠️ Ignoring cancel event (temporary protection)")
+      return NextResponse.json({ received: true })
+    }
+
+    // ===============================
+    // 🚀 ACTIVATE (FINAL FIX)
+    // ===============================
+    const allowedEvents = [
+      "subscription.activated",
+      "subscription.authenticated",
+      "subscription.charged",
+    ]
+
+    if (allowedEvents.includes(event.event)) {
       console.log("🚀 Activating:", userId)
+      console.log("📦 Plan Type:", planType)
 
       const { error: deleteError } = await supabase
         .from("subscriptions")
@@ -179,45 +192,6 @@ export async function POST(req: Request) {
         console.error("❌ Activation error:", error)
       } else {
         console.log("✅ DB SUCCESS:", data)
-      }
-    }
-
-    // ===============================
-    // 🔁 RENEWAL
-    // ===============================
-    if (event.event === "subscription.charged") {
-      console.log("🔁 Renewal:", userId)
-
-      const { error } = await supabase
-        .from("subscriptions")
-        .update({
-          trips_used: 0,
-          status: "active",
-          current_period_start: currentStart,
-          current_period_end: currentEnd,
-        })
-        .eq("user_id", userId)
-
-      if (error) {
-        console.error("Renewal error:", error)
-      }
-    }
-
-    // ===============================
-    // ❌ CANCEL
-    // ===============================
-    if (event.event === "subscription.cancelled") {
-      console.log("❌ Cancel:", userId)
-
-      const { error } = await supabase
-        .from("subscriptions")
-        .update({
-          status: "cancelled",
-        })
-        .eq("user_id", userId)
-
-      if (error) {
-        console.error("Cancel error:", error)
       }
     }
 
