@@ -159,14 +159,16 @@ console.log("CREDITS DEBUG:", {
   user: userId
 });
 
-// ❌ Credits finished
 if (tripsUsed >= tripsLimit) {
   await supabase.rpc("release_ai_lock", {
     user_id_input: userId
   })
 
   return NextResponse.json(
-    { error: "Trip limit reached", code: "LIMIT_REACHED" },
+    {
+      error: "TRIP_LIMIT_REACHED",
+      redirect: "/subscribe"
+    },
     { status: 403 }
   )
 }
@@ -534,6 +536,31 @@ const trip = {
 }
 
 
+
+
+/* ---------- Save trip ---------- */
+
+const { error: tripError } = await supabase
+  .from("trips")
+  .insert({
+    user_id: userId,
+    destination,
+    itinerary_json: trip
+  })
+
+if (tripError) {
+  console.error("❌ Trip save error:", tripError)
+
+  await supabase.rpc("release_ai_lock", {
+    user_id_input: userId
+  })
+
+  return NextResponse.json(
+    { error: "Failed to save trip" },
+    { status: 500 }
+  )
+}
+
 /* ---------- SAFE CREDIT DEDUCTION ---------- */
 
 const { data: creditOk, error: creditError } = await supabase.rpc(
@@ -553,6 +580,10 @@ if (creditError) {
 }
 
 if (!creditOk) {
+  await supabase.rpc("release_ai_lock", {
+    user_id_input: userId
+  })
+
   return NextResponse.json(
     {
       error: "TRIP_LIMIT_REACHED",
@@ -561,16 +592,6 @@ if (!creditOk) {
     { status: 403 }
   )
 }
-
-/* ---------- Save trip ---------- */
-
-await supabase.from("trips").insert({
-user_id:userId,
-destination,
-itinerary_json:trip
-})
-
-
 
 // 🔥 release lock after success
 await supabase.rpc("release_ai_lock", {

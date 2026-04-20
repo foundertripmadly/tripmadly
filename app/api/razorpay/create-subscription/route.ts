@@ -58,7 +58,7 @@ export async function POST(req: Request) {
       .from("subscriptions")
       .select("*")
       .eq("user_id", user.id)
-      .in("status", ["active", "created", "authenticated"])
+      .in("status", ["active", "created", "authenticated", "pending"])
       .neq("plan_type", "free")
       .maybeSingle()
 

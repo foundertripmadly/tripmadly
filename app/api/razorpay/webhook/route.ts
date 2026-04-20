@@ -5,7 +5,7 @@ import crypto from "crypto"
 import { createClient } from "@supabase/supabase-js"
 
 export async function POST(req: Request) {
-  console.log("🚀 Subscription API hit")
+  console.log("🚀 WEBHOOK HIT")
 
   try {
     // ===============================
@@ -74,9 +74,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true })
     }
 
-    await supabase.from("webhook_events").insert({
-      id: eventId,
-    })
+    const { error: webhookInsertError } = await supabase
+      .from("webhook_events")
+      .insert({ id: eventId })
+
+    if (webhookInsertError) {
+      console.error("❌ Webhook insert failed:", webhookInsertError)
+      return NextResponse.json({ error: "Webhook insert failed" }, { status: 500 })
+    }
 
     // ===============================
     // 📦 EXTRACT SUBSCRIPTION
@@ -166,27 +171,23 @@ export async function POST(req: Request) {
       console.log("🚀 Activating:", userId)
       console.log("📦 Plan Type:", planType)
 
-      const { error: deleteError } = await supabase
-        .from("subscriptions")
-        .delete()
-        .eq("user_id", userId)
-
-      if (deleteError) {
-        console.error("❌ Delete error:", deleteError)
-      }
-
       const { data, error } = await supabase
-        .from("subscriptions")
-        .insert({
-          user_id: userId,
-          plan_type: planType,
-          razorpay_subscription_id: razorpaySubId,
-          trips_limit: limit,
-          trips_used: 0,
-          status: "active",
-          current_period_start: currentStart,
-          current_period_end: currentEnd,
-        })
+  .from("subscriptions")
+  .upsert(
+    {
+      user_id: userId,
+      plan_type: planType,
+      razorpay_subscription_id: razorpaySubId,
+      trips_limit: limit,
+      trips_used: 0,
+      status: "active",
+      current_period_start: currentStart,
+      current_period_end: currentEnd,
+    },
+    {
+      onConflict: "user_id",
+    }
+  )
 
       if (error) {
         console.error("❌ Activation error:", error)
@@ -194,10 +195,13 @@ export async function POST(req: Request) {
         console.log("✅ DB SUCCESS:", data)
       }
     }
-
+    
+    console.log("✅ WEBHOOK PROCESSED SUCCESSFULLY")
+    
     return NextResponse.json({ received: true })
   } catch (error) {
     console.error("Webhook error:", error)
+    
 
     return NextResponse.json(
       { error: "Webhook processing failed" },
