@@ -111,9 +111,13 @@ export async function POST(req: Request) {
               "monthly",
           },
 
-          current_start: Math.floor(Date.now() / 1000),
+          current_start:
+            payment?.created_at || Math.floor(Date.now() / 1000),
+
           current_end:
-            Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+            (payment?.notes?.plan_type === "yearly")
+            ? Math.floor(Date.now() / 1000) + 365 * 24 * 60 * 60
+            : Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
         }
       }
     }
@@ -130,14 +134,21 @@ export async function POST(req: Request) {
       return NextResponse.json({ received: true })
     }
 
-    const userId = subscription.notes?.user_id
+    let userId = subscription.notes?.user_id
+
+// 🔥 HARD FALLBACK (CRITICAL)
+   if (!userId) {
+     userId =
+       event.payload?.payment?.entity?.notes?.user_id ||
+       event.payload?.subscription?.entity?.notes?.user_id
+   }
+
+   if (!userId) {
+     console.log("❌ FINAL FAIL: user_id not found anywhere")
+     return NextResponse.json({ received: true })
+  }
     const planType = subscription.notes?.plan_type || "monthly"
     console.log("📦 Plan Type from Razorpay:", planType)
-
-    if (!userId) {
-      console.log("❌ Missing user_id in notes")
-      return NextResponse.json({ received: true })
-    }
 
     const razorpaySubId = subscription.id
 
@@ -165,21 +176,30 @@ export async function POST(req: Request) {
       "subscription.activated",
       "subscription.authenticated",
       "subscription.charged",
+      "payment.captured"
     ]
 
     if (allowedEvents.includes(event.event)) {
       console.log("🚀 Activating:", userId)
+      console.log("🔥 UPDATING USER:", userId) 
       console.log("📦 Plan Type:", planType)
+      
+      const { data: existing } = await supabase
+        .from("subscriptions")
+        .select("trips_used")
+        .eq("user_id", userId)
+        .maybeSingle()
 
+      const tripsUsed = existing?.trips_used ?? 0
       const { data, error } = await supabase
-  .from("subscriptions")
-  .upsert(
+        .from("subscriptions")
+        .upsert(
     {
       user_id: userId,
       plan_type: planType,
       razorpay_subscription_id: razorpaySubId,
       trips_limit: limit,
-      trips_used: 0,
+      trips_used: tripsUsed,
       status: "active",
       current_period_start: currentStart,
       current_period_end: currentEnd,

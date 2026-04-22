@@ -395,38 +395,48 @@ RETURN STRICT JSON ONLY:
 
 
 
-let geminiResponse
+let geminiResponse: any = null
 
 console.log("🚀 Calling Gemini API...");
 
 try {
   const response = await axios.post(
-    `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent?key=${process.env.GOOGLE_AI_API_KEY}`,
-    {
-      contents: [{ role: "user", parts: [{ text: prompt }] }]
-    },
-    {
-      headers: { "Content-Type": "application/json" },
-      timeout: 20000
-    }
-  )
+  `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent?key=${process.env.GOOGLE_AI_API_KEY}`,
+  {
+    contents: [{ role: "user", parts: [{ text: prompt }] }]
+  },
+  {
+    headers: { "Content-Type": "application/json" },
+    timeout: 20000,
+    validateStatus: () => true // ✅ ADD THIS
+  }
+)
 
-  geminiResponse = response.data
+if (response.status !== 200) {
+  throw new Error("Gemini bad response")
+}
+
+geminiResponse = response.data
 
 } catch (err) {
   console.error("❌ Gemini error, retrying...")
 
   try {
     const retry = await axios.post(
-      `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent?key=${process.env.GOOGLE_AI_API_KEY}`,
-      {
-        contents: [{ role: "user", parts: [{ text: prompt }] }]
-      },
-      {
-        headers: { "Content-Type": "application/json" },
-        timeout: 20000
-      }
-    )
+  `${GEMINI_BASE}/models/${GEMINI_MODEL}:generateContent?key=${process.env.GOOGLE_AI_API_KEY}`,
+  {
+    contents: [{ role: "user", parts: [{ text: prompt }] }]
+  },
+  {
+    headers: { "Content-Type": "application/json" },
+    timeout: 20000,
+    validateStatus: () => true // ✅ ADD THIS
+  }
+)
+
+if (retry.status !== 200) {
+  throw new Error("Gemini retry bad response")
+}
 
     geminiResponse = retry.data
 
@@ -438,8 +448,13 @@ try {
   }
 }
 
-console.log("✅ Gemini responded successfully");
-const geminiData = geminiResponse
+if (!geminiResponse) {
+  console.log("⚠️ Gemini completely failed, using fallback");
+} else {
+  console.log("✅ Gemini success");
+}
+
+const geminiData = geminiResponse || {}
 
 const text =
 geminiData?.candidates?.[0]?.content?.parts?.[0]?.text || ""
