@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { getCurrencyFromCountry } from "@/lib/currency"
 import axios from "axios"
 
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.5-flash"
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-1.5-flash"
 const GEMINI_BASE = process.env.GEMINI_API_BASE
 const GOOGLE_KEY = process.env.GOOGLE_MAPS_API_KEY
 

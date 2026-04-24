@@ -174,9 +174,7 @@ export async function POST(req: Request) {
     // ===============================
     const allowedEvents = [
       "subscription.activated",
-      "subscription.authenticated",
-      "subscription.charged",
-      "payment.captured"
+      "subscription.charged"
     ]
 
     if (allowedEvents.includes(event.event)) {
@@ -190,7 +188,7 @@ export async function POST(req: Request) {
         .eq("user_id", userId)
         .maybeSingle()
 
-      const tripsUsed = existing?.trips_used ?? 0
+      const tripsUsed = 0
       const { data, error } = await supabase
         .from("subscriptions")
         .upsert(
